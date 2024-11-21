@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:title" content="AMS" />
+    <meta property="og:description" content="AMS Indonesia. MELEBIHI HARAPAN konsumen" />
+    <meta property="og:image" content="{{ url_for('static', filename='images/logo.png') }}" />
+
+    <title>AMS</title>
+    <!-- Customized Bootstrap Stylesheet -->
+
+    <link href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Template Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tiny-slider.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style3.css') }}" />
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main3.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,600;1,700&family=Roboto:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Work+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
+        rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/summernote/0.8.18/summernote-bs4.min.css" rel="stylesheet">
+    <link rel="icon" href="{{ url_for('static', filename = 'images/logo.png') }}" type="image/x-icon" />
+
+    <style>
+        .search input {
+            width: 80%;
+            border-radius: 20px 0 0 20px;
+        }
+
+        .search button {
+            border-radius: 0 20px 20px 0;
+        }
+
+        .layanan {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ======= Header ======= -->
+    <header id="header" class="header d-flex align-items-center">
+        <div class="container-fluid container-xl d-flex align-items-center justify-content-between">
+            <a href="/" class="logo d-flex align-items-center">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="icon-AMSID" height="40px" />
+                <h1 style="color: #ffffff">AMS</h1>
+                <span style="color: aliceblue">.</span>
+                <h1 style="color: #ffffff;">Home</h1>
+            </a>
+
+            <i class="mobile-nav-toggle mobile-nav-show bi bi-list"></i>
+            <i class="mobile-nav-toggle mobile-nav-hide d-none bi bi-x"></i>
+            <nav id="navbar" class="navbar"></nav>
+            <!-- .navbar -->
+        </div>
+    </header>
+    <!-- End Header -->
+
+    <!-- Start Hero Section -->
+    <div class="hero">
+        <div class="pt-5 pb-5 container">
+            <!-- End Carousel -->
+            <div class="search d-flex align-items-center flex-grow-1 mb-3 mt-5 pb-3">
+                <form class="d-flex justify-content-center flex-grow-1" action="/search" method="GET">
+                    <input class="form-control me-2" type="search" placeholder="Cari barang yang ingin anda beli..."
+                        aria-label="Search" name="q">
+                    <button class="btn btn-outline-secondary" type="submit">Search</button>
+                </form>
+            </div>
+            <div class="video-container">
+                <iframe class="responsive-iframe"
+                    src="https://www.youtube.com/embed/8r1r_amkWPM?si=PcaP1RryFeM36IIc&vq=hd720" title="Ams Video"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+    <!-- End Hero Section -->
+
+    <!-- Start Product Section -->
+    <div class="product-section">
+        <div class="container">
+            <div class="row">
+                <!-- Start Column 1 -->
+                <div class="col-md-12 col-lg-3 mb-5 mb-lg-0">
+                    <h2 class="mb-4 section-title">
+                        <span>Best</span> Products
+                    </h2>
+                    <p class="mb-4">
+                        Temukan produk terbaik kami yang paling laris dan paling banyak dicari oleh pelanggan kami.
+                    </p>
+                    <p><a href="/shop" class="btn">Explore</a></p>
+                </div>
+                <!-- End Column 1 -->
+
+                <!-- Start Product Columns -->
+                <div class="col-md-12 col-lg-9">
+                    <div class="row">
+                        {% for product in product_list if product.is_best_product %}
+                        <div class="col-12 col-md-4 col-lg-3 mb-4">
+                            <a class="product-item" href="/detail/{{ product._id }}">
+                                <img src="/static/product_pics/{{ product.image }}" class="img-fluid product-thumbnail"
+                                    alt="{{ product.product_name }}">
+                                <h3 class="product-title">{{ product.product_name }}</h3>
+                                <strong class="product-price">Rp{{ product.product_price|format_price }}</strong>
+                                <span class="icon-cross">
+                                    <img src="{{ url_for('static', filename='images/cross.svg') }}" class="img-fluid">
+                                </span>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <!-- End Product Columns -->
+            </div>
+        </div>
+    </div>
+    <!-- End Product Section -->
+    <div class="container-fluid pt-5 pb-5 layanan">
+        <div class="container text-center">
+            <h2 class="fw-bold text-dark" id="layanan">Layanan <span>AMS</span></h2>
+            <p>Kami adalah sebuah perusahaan yang bergerak dalam pelayanan jasa konsultan, pengadaan dan
+                pemasangan.</p>
+            <div class="container-fluid pt-5 pb-5">
+                <div class="container text-center">
+                    <div class="row pt-5">
+                        <div class="col-md-4">
+                            <div class="lingkaran">
+                                <i class="bi bi-hospital" style="color: #ffffff;"></i>
+                            </div>
+                            <h3 class="mt-3">Nurse Call</h3>
+                            <p>Nurse Call system adalah sebagai salah satu kelengkapan fasilitas Rumah Sakit
+                                untuk meningkatkan pelayanan terhadap pasien.</p>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="lingkaran">
+                                <i class="bi bi-prescription2" style="color: #ffffff;"></i>
+                            </div>
+                            <h3 class="mt-3">Instalasi Gas Medis</h3>
+                            <p>Perencanaan, Pengadaan dan Pemasangan Instalasi Gas Medis Sentral, melalui
+                                pemipaan jalur gas medis membuat sistem pemakaian gas medis menjadi lebih efisien, aman
+                                dan
+                                nyaman bagi kebutuhan pasien.</p>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="lingkaran">
+                                <i class="bi bi-clipboard2-pulse-fill" style="color: #ffffff;"></i>
+                            </div>
+                            <h3 class="mt-3">SIM-RS</h3>
+                            <p>Sistem Informasi Manajemen Rumah Sakit (SIM-RS). Kami membantu Rumah Sakit
+                                untuk mengelola data pasien, dokter, obat, dan lain-lain.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Start Footer Section -->
+    <footer class="footer-section">
+        <div class="container relative">
+            <div class="row g-5 mb-5">
+                <div class="col-lg-4">
+                    <div class="mb-4 footer-logo-wrap"><a href="#" class="footer-logo">AMS<span>.</span></a></div>
+                    <p class="mb-4">
+                        Moto kami MELEBIHI HARAPAN konsumen, kami menjamin kualitas sesuai standar yang diharapkan,
+                        sehingga klien kami mendapat pelayanan dan jaminan kualitas, kepercayaan ini menjadi bagian dari
+                        semangat kami untuk terus melayani, dengan pelayanan paska project yang menjadikan kami terus
+                        eksis dan terus berinovasi.
+                    </p>
+                    <ul class="list-unstyled custom-social">
+                        <li><a href="#"><span class="bi bi-facebook"></span></a></li>
+                        <li><a href="#"><span class="bi bi-twitter"></span></a></li>
+                        <li><a href="#"><span class="bi bi-instagram"></span></a></li>
+                        <li><a href="#"><span class="bi bi-linkedin"></span></a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-8">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="map_container">
+                                <iframe
+                                    src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3964.1684135378687!2d106.8019525!3d-6.5003525!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69c30b547f0a33%3A0xc21e8e25e072d5f3!2sPT.Anugerah%20Mitrautama%20Sejahtera!5e0!3m2!1sid!2sid!4v1722352155896!5m2!1sid!2sid"
+                                    width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="border-top copyright">
+                <div class="row pt-4">
+                    <div class="col-lg-6">
+                        <p class="mb-2 text-center text-lg-start">Copyright &copy;
+                            <script>document.write(new Date().getFullYear());</script>. All Rights Reserved. &mdash;
+                        <p>AMS</p>
+                        </p>
+                    </div>
+
+                    <div class="col-lg-6 text-center text-lg-end">
+                        <ul class="list-unstyled d-inline-flex ms-auto">
+                            <li class="me-4"><a href="#">Terms &amp; Conditions</a></li>
+                            <li><a href="#">Privacy Policy</a></li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </footer>
+    <div id="preloader"></div>
+
+    <!-- End Footer Section -->
+
+    <!-- Scripts -->
+    <script>
+        $(document).ready(function () {
+            $("#navlogin").addClass("active");
+        });
+    </script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tiny-slider.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/custom.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tiny-slider/2.9.3/min/tiny-slider.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.10.1/sha256.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.10.1/sha256.js"></script>
+    <script src="static/js/main.js"></script>
+    <script src="static/js/form-control.js"></script>
+    <script src="static/js/navbar-control.js"></script>
+
+</body>
+
+</html>
