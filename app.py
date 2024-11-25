@@ -7,6 +7,9 @@ from datetime import datetime, timedelta
 import jwt
 import os
 from bs4 import BeautifulSoup
+from os.path import join, dirname
+from dotenv import load_dotenv
+import certifi
 
 app = Flask(__name__)
 
@@ -21,9 +24,16 @@ articles_per_page = 3
 
 SECRET_KEY = "AMS"
 
-client = MongoClient('mongodb+srv://test:sparta@cluster0.evhvrqa.mongodb.net/?retryWrites=true&w=majority')
-db = client.dbams
+ca = certifi.where()
 
+dotenv_path = join(dirname(__file__), '.env')
+load_dotenv(dotenv_path)
+
+MONGODB_URI = os.environ.get("MONGODB_URI")
+DB_NAME =  os.environ.get("DB_NAME")
+
+client = MongoClient(MONGODB_URI)
+db = client[DB_NAME]
 TOKEN_KEY = "mytoken"
 
 def is_logged_in():
