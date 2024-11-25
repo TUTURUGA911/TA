@@ -232,21 +232,30 @@
                 <!-- Product Information -->
                 <div class="product-details">
                     <h2 class="product-single-name">{{info_product.product_name}}</h2>
-                    <p class="product-stock">Stock: {{info_product.product_stock}}</p>
                     <h3 class="product-single-price">Rp{{info_product.product_price | format_price }}</h3>
-                    <form id="productForm" action="/api/cart/mine/items" method="POST"
-                        onsubmit="return checkStock(event)">
-                        <input type="hidden" name="product_id" value="{{info_product._id}}">
-                        <input type="hidden" name="product_name" value="{{info_product.product_name}}">
-                        <input type="hidden" name="product_price" value="{{info_product.product_price}}">
-                        <input type="hidden" name="product_image" value="{{info_product.image}}">
-                        <div class="add-to-cart">
-                            <div class="form-field-container">
-                                <input type="number" name="qty" placeholder="Qty" value="1" min="1">
-                            </div>
-                            <button type="submit" class="shop-now-button">Tambahkan Ke Keranjang</button>
+                    <div class="add-to-cart">
+                        <div class="d-flex align-items-center mb-3">
+                            <!-- Tokopedia Button -->
+                            <button id="tokopediaLink" class="shop-now-button me-2 btn"
+                                style="background-color: #229ed8; text-decoration: none; display: flex; align-items: center; color: white;">
+                                <img src="{{ url_for('static', filename='images/tokopedia.png') }}" alt="Tokopedia"
+                                    style="width: 24px; height: 24px; margin-right: 8px;" />
+                                Beli di Tokopedia
+                            </button>
+                            <!-- WhatsApp Button -->
+                            <button id="whatsappLink" class="shop-now-button me-2 btn"
+                                style="background-color: #25d366; text-decoration: none; display: flex; align-items: center; color: white;">
+                                <img src="{{ url_for('static', filename='images/wa.png') }}" alt="WhatsApp"
+                                    style="width: 24px; height: 24px; margin-right: 8px;" />
+                                Pesan via WhatsApp
+                            </button>
+                            <!-- Back Button -->
+                            <button class="btn btn-primary" onclick="history.back()">
+                                <i></i> Back
+                            </button>
                         </div>
-                    </form>
+
+                    </div>
                     <div class="mt-2 md:mt-3">
                         <div class="product-description">
                             <div class="ck-content">
@@ -288,29 +297,25 @@
             }
         });
 
-        function checkStock(event) {
-            var stock = {{info_product.product_stock}};
-            var qty = document.querySelector('input[name="qty"]').value;
-    
-            if (stock <= 0) {
-                event.preventDefault();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Stok Habis!',
-                    text: 'Maaf, produk ini sudah tidak tersedia.',
-                });
-                return false;
-            } else if (qty > stock) {
-                event.preventDefault();
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Jumlah melebihi stok',
-                    text: 'Jumlah yang diminta melebihi stok yang tersedia.',
-                });
-                return false;
-            }
-            return true;
-        };
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const productName = "{{info_product.product_name}}";
+            const tokopediaBaseUrl = "https://www.tokopedia.com/ams-indo";
+            const whatsappBaseUrl = "https://wa.me/6281290939612";
+
+            // Generate Tokopedia link dynamically
+            const tokopediaLink = `${tokopediaBaseUrl}?product=${encodeURIComponent(productName)}`;
+            document.getElementById("tokopediaLink").onclick = function () {
+                window.open(tokopediaLink, "_blank");
+            };
+
+            // Generate WhatsApp link dynamically
+            const whatsappMessage = `Halo, saya ingin membeli produk ${productName}. Apakah stok tersedia?`;
+            const whatsappLink = `${whatsappBaseUrl}?text=${encodeURIComponent(whatsappMessage)}`;
+            document.getElementById("whatsappLink").onclick = function () {
+                window.open(whatsappLink, "_blank");
+            };
+        });
     </script>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

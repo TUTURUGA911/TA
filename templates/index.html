@@ -42,6 +42,51 @@
         .layanan {
             background-color: #f8f9fa;
         }
+
+        /* Styling untuk bubble */
+        .bubble-wa,
+        .bubble-tokopedia {
+            position: fixed;
+            bottom: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .bubble-wa:hover,
+        .bubble-tokopedia:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Bubble WhatsApp */
+        .bubble-wa {
+            right: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .bubble-wa img {
+            width: 40px;
+            height: 40px;
+        }
+
+        /* Bubble Tokopedia */
+        .bubble-tokopedia {
+            right: 90px;
+            background-color: #22d865;
+        }
+
+        .bubble-tokopedia img {
+            width: 40px;
+            height: 40px;
+        }
     </style>
 </head>
 
@@ -178,7 +223,7 @@
                     </p>
                     <ul class="list-unstyled custom-social">
                         <li><a href="#"><span class="bi bi-facebook"></span></a></li>
-                        <li><a href="#"><span class="bi bi-twitter"></span></a></li>
+                        <li><a href="#"><span class="bi bi-youtube"></span></a></li>
                         <li><a href="#"><span class="bi bi-instagram"></span></a></li>
                         <li><a href="#"><span class="bi bi-linkedin"></span></a></li>
                     </ul>
@@ -219,6 +264,16 @@
     <div id="preloader"></div>
 
     <!-- End Footer Section -->
+    <!-- Bubble WhatsApp -->
+    <a href="https://wa.me/6281290939612?text=Halo, saya ingin informasi lebih lanjut." target="_blank"
+        class="bubble-wa">
+        <img src="{{ url_for('static', filename='images/wa.png') }}" alt="WhatsApp">
+    </a>
+
+    <!-- Bubble Tokopedia -->
+    <a href="https://www.tokopedia.com/ams-indo" target="_blank" class="bubble-tokopedia">
+        <img src="{{ url_for('static', filename='images/tokopedia.png') }}" alt="Tokopedia">
+    </a>
 
     <!-- Scripts -->
     <script>

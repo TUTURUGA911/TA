@@ -25,14 +25,20 @@
 
     <style>
         .modern-image {
-            width: 80%; /* Mengurangi ukuran gambar menjadi 80% dari kontainer */
-            max-width: 800px; /* Memberikan batasan maksimum untuk ukuran gambar */
-            margin: 0 auto; /* Menjadikan gambar berada di tengah */
-            display: block; /* Mengubah gambar menjadi elemen blok agar margin berlaku */
-            border-radius: 10px; /* Membuat tepi gambar melengkung */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Memberikan bayangan ringan pada gambar */
+            width: 80%;
+            /* Mengurangi ukuran gambar menjadi 80% dari kontainer */
+            max-width: 800px;
+            /* Memberikan batasan maksimum untuk ukuran gambar */
+            margin: 0 auto;
+            /* Menjadikan gambar berada di tengah */
+            display: block;
+            /* Mengubah gambar menjadi elemen blok agar margin berlaku */
+            border-radius: 10px;
+            /* Membuat tepi gambar melengkung */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            /* Memberikan bayangan ringan pada gambar */
         }
-        
+
         .kategoricaption {
             background-color: #f8f9fa;
             border-radius: 10px;
@@ -69,6 +75,13 @@
 
     <!-- Start Detail Artikel Section -->
     <div class="container mt-5 pt-5 my-5" style="min-height:100vh">
+        <!-- Tombol Back -->
+        <div class="mb-3">
+            <button class="btn btn-primary" onclick="history.back()">
+                <i class="bi bi-arrow-left"></i> Back
+            </button>
+        </div>
+        <!-- Konten Artikel -->
         <div class="kategoricaption mb-5">
             <div class="row">
                 <div class="col">
@@ -91,6 +104,58 @@
             </div>
         </div>
     </div>
+
+    <!-- Start Footer Section -->
+    <footer class="footer-section">
+        <div class="container relative">
+            <div class="row g-5 mb-5">
+                <div class="col-lg-4">
+                    <div class="mb-4 footer-logo-wrap"><a href="#" class="footer-logo">AMS<span>.</span></a></div>
+                    <p class="mb-4">
+                        Moto kami MELEBIHI HARAPAN konsumen, kami menjamin kualitas sesuai standar yang diharapkan,
+                        sehingga klien kami mendapat pelayanan dan jaminan kualitas, kepercayaan ini menjadi bagian dari
+                        semangat kami untuk terus melayani, dengan pelayanan paska project yang menjadikan kami terus
+                        eksis dan terus berinovasi.
+                    </p>
+                    <ul class="list-unstyled custom-social">
+                        <li><a href="#"><span class="bi bi-facebook"></span></a></li>
+                        <li><a href="#"><span class="bi bi-youtube"></span></a></li>
+                        <li><a href="#"><span class="bi bi-instagram"></span></a></li>
+                        <li><a href="#"><span class="bi bi-linkedin"></span></a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-8">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="map_container">
+                                <iframe
+                                    src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3964.1684135378687!2d106.8019525!3d-6.5003525!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69c30b547f0a33%3A0xc21e8e25e072d5f3!2sPT.Anugerah%20Mitrautama%20Sejahtera!5e0!3m2!1sid!2sid!4v1722352155896!5m2!1sid!2sid"
+                                    width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="border-top copyright">
+                <div class="row pt-4">
+                    <div class="col-lg-6">
+                        <p class="mb-2 text-center text-lg-start">Copyright &copy;
+                            <script>document.write(new Date().getFullYear());</script>. All Rights Reserved. &mdash;
+                        <p>AMS</p>
+                        </p>
+                    </div>
+
+                    <div class="col-lg-6 text-center text-lg-end">
+                        <ul class="list-unstyled d-inline-flex ms-auto">
+                            <li class="me-4"><a href="#">Terms &amp; Conditions</a></li>
+                            <li><a href="#">Privacy Policy</a></li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </div>
     </footer>
 
     <!-- End Footer Section -->
