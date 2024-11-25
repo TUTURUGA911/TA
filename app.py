@@ -14,7 +14,7 @@ import certifi
 app = Flask(__name__)
 
 app.config["TEMPLATES_AUTO_RELOAD"] = True
-app.config["UPLOAD_FOLDER"] = "./static/img_artikel", "./static/product_pics"
+app.config["UPLOAD_FOLDER"] = "./static/img_artikel"
 
 # Utility functions
 def format_price(value):
