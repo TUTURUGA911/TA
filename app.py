@@ -13,8 +13,19 @@ import certifi
 
 app = Flask(__name__)
 
+dotenv_path = join(dirname(__file__), '.env')
+load_dotenv(dotenv_path)
+
+MONGODB_URI = os.environ.get("MONGODB_URI")
+DB_NAME =  os.environ.get("DB_NAME")
+
+client = MongoClient(MONGODB_URI)
+db = client[DB_NAME]
+
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config["UPLOAD_FOLDER"] = "./static/img_artikel"
+
+
 
 # Utility functions
 def format_price(value):
@@ -27,14 +38,7 @@ SECRET_KEY = "AMS"
 
 ca = certifi.where()
 
-dotenv_path = join(dirname(__file__), '.env')
-load_dotenv(dotenv_path)
 
-MONGODB_URI = os.environ.get("MONGODB_URI")
-DB_NAME =  os.environ.get("DB_NAME")
-
-client = MongoClient(MONGODB_URI)
-db = client[DB_NAME]
 TOKEN_KEY = "mytoken"
 
 def is_logged_in():
