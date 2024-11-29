@@ -523,18 +523,26 @@ section {
     color: #fff;
   }
 
-  .navbar .dropdown ul,
-  .navbar .dropdown .dropdown ul {
-    position: static;
-    display: none;
-    padding: 10px 0;
-    margin: 10px 20px;
-    transition: all 0.5s ease-in-out;
-    border: 1px solid #222428;
+  .navbar .dropdown {
+    position: relative;
   }
 
-  .navbar .dropdown>.dropdown-active,
-  .navbar .dropdown .dropdown>.dropdown-active {
+  .navbar .dropdown>a {
+    cursor: pointer;
+  }
+
+  .navbar .dropdown ul {
+    position: relative;
+    display: none;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #222428;
+    margin: 0;
+    list-style: none;
+    z-index: 9998;
+  }
+
+  .navbar .dropdown-active ul {
     display: block;
   }
 
@@ -577,6 +585,7 @@ section {
     z-index: 9996;
   }
 }
+
 
 /*--------------------------------------------------------------
 # Get Started Section

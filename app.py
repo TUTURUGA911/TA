@@ -1,17 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, jsonify, request, redirect, url_for
 from pymongo import MongoClient
-from werkzeug.utils import secure_filename
-from bson import ObjectId
-import hashlib
 from datetime import datetime, timedelta
 import jwt
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+import certifi
 import os
+from bson import ObjectId
 from bs4 import BeautifulSoup
+from collections import defaultdict
+import re
+import os
 from os.path import join, dirname
 from dotenv import load_dotenv
-import certifi
 
-app = Flask(__name__)
+ca = certifi.where()
 
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
@@ -21,25 +24,68 @@ DB_NAME =  os.environ.get("DB_NAME")
 
 client = MongoClient(MONGODB_URI)
 db = client[DB_NAME]
-
-app.config["TEMPLATES_AUTO_RELOAD"] = True
-app.config["UPLOAD_FOLDER"] = "./static/img_artikel"
-
-
+app = Flask(__name__)
 
 # Utility functions
 def format_price(value):
-    return "{:,.0f}".format(value)
-app.jinja_env.filters['format_price'] = format_price
+    return f"{value:,.0f}"
 
+app.jinja_env.filters['format_price'] = format_price
+app.config["UPLOAD_FOLDER"] = "./static/profile_pics"
+SECRET_KEY = os.getenv("SECRET_KEY", "SPARTA")  # Ideally load this from an environment variable
+TOKEN_KEY = "mytoken"
 articles_per_page = 3
 
-SECRET_KEY = "AMS"
+@app.route('/api/chart-data', methods=['GET'])
+def chart_data():
+    # Fetch user registration data
+    user_data = db.user.find({}, {"registration_date": 1})
+    user_count_per_month = defaultdict(int)
+    
+    for user in user_data:
+        # Check if 'registration_date' exists in the document
+        if 'registration_date' in user:
+            reg_date = datetime.strptime(user['registration_date'], "%Y-%m-%d")
+            month_year = reg_date.strftime("%Y-%m")
+            user_count_per_month[month_year] += 1
 
-ca = certifi.where()
+    # Fetch total purchases per month
+    order_data = db.orders.find({}, {"order_date": 1, "total_checkout": 1})
+    purchase_count_per_month = defaultdict(int)
+
+    for order in order_data:
+        # Check if 'order_date' exists in the document
+        if 'order_date' in order:
+            order_date = datetime.strptime(order['order_date'], "%Y-%m-%d %H:%M:%S")
+            month_year = order_date.strftime("%Y-%m")
+            purchase_count_per_month[month_year] += order["total_checkout"]
+
+    # Fetch total number of products sold per month
+    product_count_per_month = defaultdict(int)
+
+    for order in order_data:
+        # Check if 'order_date' and 'items' exist in the document
+        if 'order_date' in order and 'items' in order:
+            order_date = datetime.strptime(order['order_date'], "%Y-%m-%d %H:%M:%S")
+            month_year = order_date.strftime("%Y-%m")
+            for item in order['items']:
+                product_count_per_month[month_year] += item['quantity']
+
+    return jsonify({
+        "user_count_per_month": user_count_per_month,
+        "purchase_count_per_month": purchase_count_per_month,
+        "product_count_per_month": product_count_per_month
+    })
 
 
-TOKEN_KEY = "mytoken"
+
+def truncate_html(html, word_limit):
+    soup = BeautifulSoup(html, "html.parser")
+    text = soup.get_text().split()
+    if len(text) > word_limit:
+        truncated_text = ' '.join(text[:word_limit]) + '...'
+        return truncated_text
+    return html
 
 def is_logged_in():
     token_receive = request.cookies.get(TOKEN_KEY)
@@ -123,7 +169,7 @@ def auth_login_comment(commentcreator):
         return jsonify({"result": "fail"})
 
 
-@app.route('/admin')
+@app.route('/login')
 def page_login():
     token_receive = request.cookies.get(TOKEN_KEY)
     try:
@@ -238,12 +284,25 @@ def index():
     if logged_in and is_admin_flag:
         return redirect(url_for('dashboard'))  # Redirect to admin dashboard if logged in as admin
     
+    page = int(request.args.get('page', 1))
+    start_index = (page - 1) * articles_per_page
+    end_index = start_index + articles_per_page
+    
+    articles = list(db.articles.find().sort('tanggal_upload', -1).skip(start_index).limit(articles_per_page))
+    for article in articles:
+        article['keterangan_artikel_truncated'] = truncate_html(article['keterangan_artikel'], 10)
+    total_articles = db.articles.count_documents({})
+    total_pages = (total_articles + articles_per_page - 1) // articles_per_page
+
+    for article in articles:
+        if 'tanggal_upload' in article and isinstance(article['tanggal_upload'], str):
+            article['tanggal_upload'] = datetime.strptime(article['tanggal_upload'], '%Y-%m-%d %H:%M:%S')
 
     product_list = db.product.find()
-    return render_template("index.html", user_info=user_info, is_admin=is_admin_flag, logged_in=logged_in, product_list=product_list)
+    return render_template("index.html", user_info=user_info, is_admin=is_admin_flag, logged_in=logged_in, product_list=product_list, articles=articles, page=page, total_pages=total_pages)
 
-@app.route('/produk')
-def produk():
+@app.route('/shop')
+def shop():
     logged_in = is_logged_in()
     user_info = get_user_info()
     is_admin_flag = is_admin(user_info)
@@ -479,6 +538,8 @@ def delete_product(id_delete):
     except Exception as e:
         return jsonify({'result': 'fail', 'msg': str(e)})
 
+
+
 @app.route('/detail/<id_product>', methods=['GET'])
 def detail(id_product):
     logged_in = is_logged_in()
@@ -489,6 +550,254 @@ def detail(id_product):
 
 
     return render_template("detail.html", user_info=user_info, is_admin=is_admin_flag, logged_in=logged_in, info_product=info_product)
+
+
+@app.route('/cart')
+def cart():
+    logged_in = is_logged_in()
+    user_info = None
+    is_admin = False
+    cart_items = []
+
+    if logged_in:
+        token_receive = request.cookies.get("mytoken")
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=["HS256"])
+        user_info = db.user.find_one({"username": payload["id"]})
+        if user_info:
+            is_admin = user_info.get("role") == "admin"
+            # Fetch the cart items for the logged-in user
+            cart_items = list(db.cart.find({"user_id": user_info["_id"]}))
+            total_payment = sum(item["product_price"] * item["quantity"] for item in cart_items)
+    return render_template("cart.html", user_info=user_info, is_admin=is_admin, logged_in=logged_in, cart_items=cart_items, total_payment=total_payment)
+
+@app.route('/checkout')
+def checkout():
+    logged_in = is_logged_in()
+    user_info = None
+    is_admin = False
+    cart_items = []
+
+    if logged_in:
+        token_receive = request.cookies.get("mytoken")
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=["HS256"])
+        user_info = db.user.find_one({"username": payload["id"]})
+        if user_info:
+            is_admin = user_info.get("role") == "admin"
+            # Fetch the cart items for the logged-in user
+            cart_items = list(db.cart.find({"user_id": user_info["_id"]}))
+            total_checkout = sum(item["product_price"] * item["quantity"] for item in cart_items)
+    return render_template("checkout.html", user_info=user_info, is_admin=is_admin, logged_in=logged_in, cart_items=cart_items, total_checkout=total_checkout)
+
+
+@app.route('/place_order', methods=['POST'])
+def place_order():
+    from datetime import datetime
+    token_receive = request.cookies.get("mytoken")
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=['HS256'])
+        user_info = db.user.find_one({"username": payload["id"]})
+        if user_info:
+            # Get the form data
+            full_name = request.form.get("full-name")
+            telephone = request.form.get("telephone")
+            address = request.form.get("address")
+            city = request.form.get("city")
+            country = request.form.get("country")
+            postcode = request.form.get("postcode")
+
+            # Get the cart items
+            cart_items = list(db.cart.find({"user_id": user_info["_id"]}))
+            total_checkout = sum(item["product_price"] * item["quantity"] for item in cart_items)
+
+            # Add shipping cost if necessary
+
+            today = datetime.now()
+            mytime = today.strftime("%Y-%m-%d %H:%M:%S")
+
+            # Create order document
+            order = {
+                "user_id": user_info["_id"],
+                "full_name": full_name,
+                "telephone": telephone,
+                "address": address,
+                "city": city,
+                "country": country,
+                "postcode": postcode,
+                "items": cart_items,
+                "total_checkout": total_checkout,
+                "order_date": mytime,
+                "status": "Menunggu Pembayaran"
+            }
+
+            # Insert the order into the database
+            db.orders.insert_one(order)
+
+            # Clear the cart
+            db.cart.delete_many({"user_id": user_info["_id"]})
+
+            # Update the product stock
+            for item in cart_items:
+                db.product.update_one(
+                    {"_id": ObjectId(item["product_id"])},
+                    {"$inc": {"product_stock": -item["quantity"]}}
+                )
+
+            # Update the user's transaction count (jumlah_transaksi)
+            db.user.update_one(
+                {"_id": user_info["_id"]},
+                {"$inc": {"jumlah_pembelian": 1}}
+            )
+
+            return redirect(url_for("orders"))
+        else:
+            return redirect(url_for("login"))
+    except (jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return redirect(url_for("login"))
+
+
+
+@app.route('/orders')
+def orders():
+    logged_in = is_logged_in()
+    user_info = None
+    is_admin = False
+    orders = []
+
+    if logged_in:
+        token_receive = request.cookies.get("mytoken")
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=['HS256'])
+        user_info = db.user.find_one({"username": payload["id"]})
+        if user_info:
+            is_admin = user_info.get("role") == "admin"
+            # Fetch the orders for the logged-in user
+            orders_cursor = db.orders.find({"user_id": user_info["_id"]})
+            orders = list(orders_cursor)  # Convert cursor to a list
+    return render_template("orders.html", user_info=user_info, is_admin=is_admin, logged_in=logged_in, orders=orders)
+
+@app.route('/manageorder', methods=['GET'])
+def manage_order_get():
+    user_info = get_user_info()
+    if not user_info or not is_admin(user_info):
+        return redirect(url_for("index"))
+    
+    orders = list(db.orders.find())
+    return render_template('manage_order.html', orders=orders, user_info=user_info, is_admin=True, logged_in=True)
+
+@app.route('/update_order_status/<order_id>', methods=['PUT'])
+def update_order_status(order_id):
+    new_status = request.form.get('status_give')
+    if new_status:
+        result = db.orders.update_one({"_id": ObjectId(order_id)}, {"$set": {"status": new_status}})
+        if result.modified_count > 0:
+            return jsonify({"result": "success"})
+        else:
+            return jsonify({"result": "fail", "msg": "Order not found or status unchanged."})
+    return jsonify({"result": "fail", "msg": "No status provided."})
+
+@app.route('/delete_order/<order_id>', methods=['DELETE'])
+def delete_order(order_id):
+    # Allow deletion regardless of the order status
+    result = db.orders.delete_one({"_id": ObjectId(order_id)})
+    if result.deleted_count > 0:
+        return jsonify({"result": "success"})
+    return jsonify({"result": "fail", "msg": "Order not found."})
+
+
+@app.route('/confirm_msg', methods=["POST"])
+def confirm_msg():
+    token_receive = request.cookies.get("mytoken")
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=["HS256"])
+        username = payload["id"]
+        id_receive = request.form["id_give"]
+        type_receive = request.form["type_give"]
+        data = db.saran.find_one({'_id': ObjectId(id_receive)})
+        print(data)
+        if type_receive == 'show':
+            db.saran.update_one({"_id": ObjectId(id_receive)}, {
+                            "$set": {'show': True}})
+        elif type_receive == 'delete':
+            db.saran.delete_one({'_id': ObjectId(id_receive)})
+        return jsonify({"result": "success", "msg": "Post updated!"})
+    except (jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return redirect(url_for("admin_dashboard"))
+
+@app.route('/api/cart/mine/items', methods=['POST'])
+def add_to_cart():
+    from datetime import datetime
+    token_receive = request.cookies.get("mytoken")
+    if not token_receive:
+        return redirect(url_for('login'))
+
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=['HS256'])
+        user_info = db.user.find_one({"username": payload["id"]})
+        if user_info:
+            product_id = request.form.get('product_id')
+            product_name = request.form.get('product_name')
+            product_price = int(request.form.get('product_price'))
+            product_image = request.form.get('product_image')
+            qty = int(request.form.get('qty'))
+
+            # Get the product from the database
+            product = db.product.find_one({"_id": ObjectId(product_id)})
+
+            if not product:
+                return jsonify({"result": "fail", "msg": "Product not found"})
+            
+            # Calculate the total quantity in the cart for this product
+            existing_cart_item = db.cart.find_one({
+                "user_id": user_info["_id"],
+                "product_id": product_id
+            })
+            if existing_cart_item:
+                new_qty = existing_cart_item["quantity"] + qty
+            else:
+                new_qty = qty
+
+            # Check if the requested quantity exceeds the available stock
+            if new_qty > product["product_stock"]:
+                return jsonify({"result": "fail", "msg": "Quantity exceeds available stock"})
+
+            today = datetime.now()
+            mytime = today.strftime("%Y-%m-%d-%H-%M-%S")
+
+            if existing_cart_item:
+                # Update the quantity of the existing product in the cart
+                db.cart.update_one(
+                    {"_id": existing_cart_item["_id"]},
+                    {"$set": {"quantity": new_qty, "timestamp": mytime}}
+                )
+            else:
+                # Add the new product to the cart
+                db.cart.insert_one({
+                    "user_id": user_info["_id"],
+                    "product_id": product_id,
+                    "product_name": product_name,
+                    "product_price": product_price,
+                    "product_image": product_image,
+                    "quantity": qty,
+                    "timestamp": mytime
+                })
+            return redirect(url_for('cart'))
+        else:
+            return jsonify({"result": "fail", "msg": "User not found"})
+    except (jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return jsonify({"result": "fail", "msg": "Token invalid"})
+
+@app.route('/delete_cart_item/<string:item_id>', methods=['DELETE'])
+def delete_cart_item(item_id):
+    token_receive = request.cookies.get("mytoken")
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=['HS256'])
+        user_info = db.user.find_one({"username": payload["id"]})
+        if user_info:
+            db.cart.delete_one({"_id": ObjectId(item_id), "user_id": user_info["_id"]})
+            return jsonify({"result": "success", "msg": "Item deleted from cart"})
+        else:
+            return jsonify({"result": "fail", "msg": "User not found"})
+    except (jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return jsonify({"result": "fail", "msg": "Token invalid"})
     
 @app.route('/search', methods=['GET'])
 def search():
@@ -499,7 +808,7 @@ def search():
     query = request.args.get('q')
     product_list = db.product.find({"product_name": {"$regex": query, "$options": "i"}})
 
-    return render_template("produk.html", user_info=user_info, is_admin=is_admin, logged_in=logged_in, product_list=product_list, query=query)
+    return render_template("shop.html", user_info=user_info, is_admin=is_admin, logged_in=logged_in, product_list=product_list, query=query)
     
 @app.route('/about')
 def about():
@@ -512,10 +821,37 @@ def about():
         return render_template('about.html', user_login=user_login, datasaran=data)
     except(jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
         return render_template('about.html', datasaran=data)
-    
-@app.route('/layanan')
-def layanan():
-    return render_template('layanan.html')
+
+@app.route('/post_saran', methods=['POST'])
+def post_saran():
+    username_receive = request.form['username_give']
+    message_receive = request.form['message_give']
+    time = datetime.now().strftime("%m%d%H%M%S")
+    doc= {
+        'msgid': f'msgid-{username_receive}-{time}',
+        'username': username_receive,
+        'message': message_receive,
+        'show': False
+    }
+    db.saran.insert_one(doc)
+    return jsonify({"result": "success", "msg": "Saran terkirim!"})
+
+@app.route('/get_user')
+def get_user():
+    datauser = list(db.user.find({'level':2}))
+    for data in datauser:
+        data["_id"] = str(data["_id"])
+        data['count_post'] = db.posts.count_documents(
+            {"username": data['username']})
+    return jsonify({"result": "success", "msg":"berhasil", "data": datauser})
+
+@app.route('/get_pesan')
+def get_pesan():
+    datapesan = list(db.saran.find({}))
+    for data in datapesan:
+        data["_id"] = str(data["_id"])
+
+    return jsonify({"result": "success", "msg":"berhasil", "data": datapesan})
 
 @app.route('/contact')
 def contact():
@@ -560,24 +896,126 @@ def remove_best_product(product_id):
     except Exception as e:
         return jsonify({'result': 'error', 'msg': str(e)})
     
-@app.route('/tambah_artikel', methods=['POST'])
-def tambah_artikel():
-    from datetime import datetime
+@app.route('/manageuser', methods=['GET'])
+def manage_user():
     user_info = get_user_info()
     if not user_info or not is_admin(user_info):
         return redirect(url_for("index"))
+
+    users = list(db.user.find())
+    for user in users:
+        print(user)  # Debug print to check the content of each user
+
+    return render_template("manageUser.html", users=users, user_info=user_info, is_admin=True, logged_in=True)
+
+
+@app.route('/edit_user/<username>', methods=['GET'])
+def edit_user(username):
+    user_info = get_user_info()
+    if not user_info or not is_admin(user_info):
+        return redirect(url_for("index"))
+
+    user = db.user.find_one({"username": username})
+    return render_template("editUser.html", user=user, user_info=user_info, is_admin=True, logged_in=True)
+
+@app.route('/update_user/<username>', methods=['POST'])
+def update_user(username):
+    user_info = get_user_info()
+    if not user_info or not is_admin(user_info):
+        return jsonify({'result': 'fail', 'msg': 'Access denied'})
+
+    new_role = request.form.get('role_give')
+
+    result = db.user.update_one(
+        {"username": username},
+        {"$set": {"role": new_role}}
+    )
+
+    if result.modified_count > 0:
+        return jsonify({'result': 'success', 'msg': 'User updated successfully'})
+    else:
+        return jsonify({'result': 'fail', 'msg': 'User not found or no changes made'})
+
+@app.route('/delete_user/<username>', methods=['DELETE'])
+def delete_user(username):
+    user_info = get_user_info()
+    if not user_info or not is_admin(user_info):
+        return jsonify({'result': 'fail', 'msg': 'Access denied'})
+
+    try:
+        result = db.user.delete_one({"username": username})
+        if result.deleted_count > 0:
+            return jsonify({'result': 'success', 'msg': 'User deleted successfully'})
+        else:
+            return jsonify({'result': 'fail', 'msg': 'User not found'})
+    except Exception as e:
+        return jsonify({'result': 'fail', 'msg': str(e)})
+    
+@app.route('/blockuser', methods=['POST'])
+def blockuser():
+    token_receive = request.cookies.get("mytoken")
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=["HS256"])
+        username = payload["id"]
+        username_receive = request.form["username_give"]
+        reason_receive = request.form["reason_give"]
+        date_receive = request.form["date_give"]
+
+        doc = {
+            'from': username,
+            'user': username_receive,
+            'reason': reason_receive,
+            'date': date_receive,
+        }
+
+        db.blocklist.insert_one(doc)
+        db.user.update_one({"username": username_receive}, {"$set": {'blocked':True}})
+
+        print(doc)
+        return jsonify({"result": "success", "msg": "User blocked!"})
+    except (jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return redirect(url_for("dashboard"))
+
+@app.route('/unblockuser', methods=['POST'])
+def unblockuser():
+    token_receive = request.cookies.get("mytoken")
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=["HS256"])
+        username = payload["id"]
+        username_receive = request.form["username_give"]
+
+        db.blocklist.delete_one({
+            'user': username_receive,
+        })
+
+        db.user.update_one({"username": username_receive}, {"$set": {'blocked':False}})
+
+        return jsonify({"result": "success", "msg": "User unblocked!"})
+    except (jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return redirect(url_for("dashboard"))
+    
+@app.route('/tambah_artikel', methods=['POST'])
+def tambah_artikel():
+    user_info = get_user_info()
+    if not user_info or not is_admin(user_info):
+        return redirect(url_for("index"))
+
     nama_receive = request.form.get('nama_give')
     keterangan_gambar_receive = request.form.get('keterangan_gambar')
     keterangan_artikel_receive = request.form.get('keterangan_artikel')
-    link_receive = request.form.get('link_give')
 
     # Get the current date and time
     current_date = datetime.now()
 
     if 'gambar_artikel' in request.files:
-        file = request.files.get('gambar_artikel')
+        file = request.files.get('gambar_artikel')  # Corrected the field name here
         file_name = secure_filename(file.filename)
-        picture_name = f"{file_name.split('.')[0]}[{nama_receive}].{file_name.split('.')[1]}"
+        
+        # Sanitize the filename by removing any characters that are not allowed
+        sanitized_name = re.sub(r'[^\w\s-]', '', file_name)  # Remove invalid characters
+        sanitized_name = re.sub(r'[-\s]+', '-', sanitized_name)  # Replace spaces or multiple dashes with single dash
+        
+        picture_name = f"{sanitized_name}-{current_date.strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
         file_path = f'./static/img_artikel/{picture_name}'
         file.save(file_path)
     else:
@@ -589,7 +1027,6 @@ def tambah_artikel():
         'keterangan_artikel': keterangan_artikel_receive,
         'gambar_artikel': picture_name,
         'tanggal_upload': current_date,
-        'link' : link_receive,
     }
     db.articles.insert_one(doc)
 
@@ -597,9 +1034,12 @@ def tambah_artikel():
 
 @app.route('/artikel')
 def artikel():
+    user_info = get_user_info()
+    if not user_info or not is_admin(user_info):
+        return redirect(url_for("index"))
+    
     articles = list(db.articles.find().sort('_id', -1))
     return render_template('artikel.html', articles=articles)
-
 
 # Route for updating an article
 @app.route('/update_artikel/<article_id>', methods=['POST'])
@@ -610,6 +1050,7 @@ def update_artikel(article_id):
     
     # Retrieve the existing article
     article = db.articles.find_one({'_id': ObjectId(article_id)})
+    current_date = datetime.now()
 
     if article:
         # Get updated data from form
@@ -619,14 +1060,21 @@ def update_artikel(article_id):
         link_receive = request.form.get('link_give')
 
         # Check if a new image is uploaded
-        if 'gambar_artikel' in request.files and request.files['gambar_artikel'].filename != '':
+        if 'gambar_artikel' in request.files:
             file = request.files.get('gambar_artikel')
-            file_name = secure_filename(file.filename)
-            picture_name = f"{file_name.split('.')[0]}[{nama_receive}].{file_name.split('.')[1]}"
-            file_path = f'./static/img_artikel/{picture_name}'
-            file.save(file_path)
+            if file:
+                file_name = secure_filename(file.filename)
+                # Sanitize the filename by removing any characters that are not allowed
+                sanitized_name = re.sub(r'[^\w\s-]', '', file_name)  # Remove invalid characters
+                sanitized_name = re.sub(r'[-\s]+', '-', sanitized_name)  # Replace spaces or multiple dashes with single dash
+                
+                picture_name = f"{sanitized_name}-{current_date.strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
+                file_path = f'./static/img_artikel/{picture_name}'
+                file.save(file_path)
+            else:
+                picture_name = article['gambar_artikel']  # Keep the current image if no new file is uploaded
         else:
-            picture_name = article['gambar_artikel']  # Keep old image if not changed
+            picture_name = article['gambar_artikel']  # Keep the current image if no file is uploaded
 
         # Update the article in the database
         db.articles.update_one(
@@ -645,7 +1093,6 @@ def update_artikel(article_id):
         return redirect(url_for('artikel'))
     else:
         return "Artikel tidak ditemukan."
-
 
 @app.route('/hapus_artikel/<article_id>', methods=['GET'])
 def hapus_artikel(article_id):
@@ -674,6 +1121,72 @@ def artikel_detail(article_id):
         return render_template('detail_artikel.html', article=article)
     else:
         return "Artikel tidak ditemukan."
+    
+@app.route('/user/<username>')
+def user(username):
+    user_info = db.user.find_one(
+        {"username": username},
+        {"_id": False}
+    )
+    token_receive = request.cookies.get("mytoken")
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=["HS256"])
+        user_login = db.user.find_one({"username": payload["id"]})
+        print(user_login)
+        if user_info['username'] == user_login['username']:
+            return render_template("user-profile.html", user_info=user_info, user_login=user_login)
+        else:
+            return render_template("user-profile.html", user_info=user_info)
+    except (jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return render_template("user-profile.html", user_info=user_info)
+
+@app.route("/update_profile", methods=["POST"])
+def update_profile():
+    token_receive = request.cookies.get("mytoken")
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=["HS256"])
+        username = payload["id"]
+        fullname_receive = request.form["fullname_give"]
+        email_receive = request.form["email_give"]
+        job_receive = request.form["job_give"]
+        phone_receive = request.form["phone_give"]
+        address_receive = request.form["address_give"]
+        bio_receive = request.form["bio_give"]
+        new_doc = {
+            "profile_name": fullname_receive,
+            "email": email_receive,
+            "profile_job": job_receive,
+            "profile_phone": phone_receive,
+            "profile_address": address_receive,
+            "profile_info": bio_receive
+        }
+        if "file_give" in request.files:
+            time = datetime.now().strftime("%m%d%H%M%S")
+            file = request.files["file_give"]
+            filename = secure_filename(file.filename)
+            extension = filename.split(".")[-1]
+            file_path = f"profile_pics/profilimg-{username}-{time}.{extension}"
+            file.save("./static/" + file_path)
+            new_doc["profile_pic"] = filename
+            new_doc["profile_pic_real"] = file_path
+        db.user.update_one({"username": payload["id"]}, {"$set": new_doc})
+        return jsonify({"result": "success", "msg": "Profile updated!"})
+    except (jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return redirect(url_for("index"))
+
+@app.route("/reset_pass", methods=["POST"])
+def reset_pass():
+    token_receive = request.cookies.get("mytoken")
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=["HS256"])
+        username_receive = request.form["username_give"]
+        if username_receive == payload['id']:
+            password_receive = request.form["passnew_give"]
+            db.user.update_one({"username": payload["id"]}, {"$set": {'password':password_receive}})
+
+        return jsonify({"result": "success", "msg": "Profile updated!"})
+    except (jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return redirect(url_for("index"))
 
 @app.route('/blog')
 def blog():
@@ -700,15 +1213,25 @@ def blog():
         total_pages=total_pages
     )
 
-
-def truncate_html(html, word_limit):
-    soup = BeautifulSoup(html, "html.parser")
-    text = soup.get_text().split()
-    if len(text) > word_limit:
-        truncated_text = ' '.join(text[:word_limit]) + '...'
-        return truncated_text
-    return html
-
+@app.route('/layanan')
+def layanan():
+    token_receive = request.cookies.get("mytoken")
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=["HS256"])
+        user_login = db.user.find_one({"username": payload["id"]})
+        return render_template('layanan.html', user_login=user_login)
+    except(jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return render_template('layanan.html')
+    
+@app.route('/portofolio')
+def portofolio():
+    token_receive = request.cookies.get("mytoken")
+    try:
+        payload = jwt.decode(token_receive, SECRET_KEY, algorithms=["HS256"])
+        user_login = db.user.find_one({"username": payload["id"]})
+        return render_template('portofolio.html', user_login=user_login)
+    except(jwt.ExpiredSignatureError, jwt.exceptions.DecodeError):
+        return render_template('portofolio.html')
 
 if __name__ == '__main__':
     app.run('0.0.0.0', port=5000, debug=True)

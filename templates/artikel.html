@@ -185,7 +185,9 @@
     <div class="sidebar" id="sidebar">
         <h2>Admin AMS</h2>
         <a href="/dashboard"><i class="fas fa-chart-pie"></i> Dashboard</a>
+        <a href="/manageuser"><i class="fas fa-user-shield"></i> User</a>
         <a href="/artikel" class="active"><i class="fas fa-blog"></i> Blog</a>
+        <a href="/manageorder"><i class="fas fa-shopping-cart"></i> Order</a>
         <a href="/addproduct"><i class="fas fa-plus-circle"></i> Tambah Produk</a>
         <a href="/manageproduct"><i class="fas fa-cog"></i> Manage Produk</a>
         <a href="javascript:void(0);" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
@@ -226,7 +228,7 @@
                                         required />
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-primary float-right">Tambah Artikel</button>
+                            <button id="submitBtn" type="submit" class="btn btn-primary float-right">Tambah Artikel</button>
                         </form>
                     </section>
 
@@ -248,9 +250,12 @@
                                     <tr>
                                         <th>{{ loop.index }}</th>
                                         <td>{{ article.nama_artikel }}</td>
-                                        <td><img src="{{ url_for('static', filename='img_artikel/' + article.gambar_artikel) }}"
+                                        <td>
+                                            <img src="{{ url_for('static', filename='img_artikel/' + article.gambar_artikel) }}"
                                                 alt="Gambar Artikel" class="img-fluid"
-                                                style="max-width: 100px; max-height: 100px;" /></td>
+                                                style="max-width: 100px; max-height: 100px;">
+                                        </td>
+
                                         <td>{{ article.keterangan_gambar }}</td>
                                         <td>
                                             <button class="btn btn-danger btn-sm"
@@ -306,7 +311,7 @@
                                                     <div class="modal-footer">
                                                         <button type="button" class="btn btn-secondary"
                                                             data-dismiss="modal">Tutup</button>
-                                                        <button type="submit" class="btn btn-primary">Simpan
+                                                        <button id="simpanBtn" type="submit" class="btn btn-primary">Simpan
                                                             Perubahan</button>
                                                     </div>
                                                 </form>
@@ -341,6 +346,57 @@
         document.getElementById('sidebarToggle').addEventListener('click', function () {
             document.getElementById('sidebar').classList.toggle('show');
         });
+
+        document.getElementById('submitBtn').addEventListener('click', function () {
+            let gambar = $("#gambar").prop("files")[0]; // Use correct ID for the file input
+
+            // Check if all the required fields are filled
+            let namaArtikel = $("#nama-artikel").val();
+            let keteranganGambar = $("#keterangan-gambar").val();
+            let keteranganArtikel = $("#keterangan-artikel").val();
+
+            if (namaArtikel && keteranganGambar && keteranganArtikel && gambar) {
+                // Form is valid, submit the form
+                $("form").submit(); // Submit the form programmatically
+            } else {
+                alert("Please fill in all the fields including the image.");
+            }
+        });
+
+        // Fungsi untuk memastikan gambar ada sebelum mengirim form
+        document.getElementById('simpanBtn').addEventListener('click', function (event) {
+            event.preventDefault();  // Mencegah submit langsung
+
+            let gambar = $("#gambar").prop("files")[0]; // Mendapatkan file gambar
+
+            // Mengecek jika semua field sudah terisi
+            let namaArtikel = $("#nama-artikel").val();
+            let keteranganGambar = $("#keterangan-gambar").val();
+            let keteranganArtikel = $("#keterangan-artikel").val();
+
+            // Pastikan semua field terisi, jika gambar kosong biarkan gambar lama tetap dipakai
+            if (namaArtikel && keteranganGambar && keteranganArtikel) {
+                if (!gambar) {
+                    alert("Tidak ada gambar baru yang dipilih. Gambar lama akan dipakai.");
+                }
+                $("form").submit(); // Submit form jika valid
+            } else {
+                alert("Mohon isi semua data yang diperlukan.");
+            }
+        });
+
+        // Update artikel melalui modal edit
+        function update(id_article) {
+            // Aksi untuk update artikel jika perlu
+            let gambar = $("#image-artikel").prop("files")[0];
+
+            if (gambar) {
+                alert("Gambar baru telah dipilih.");
+            } else {
+                alert("Tidak ada gambar baru, gambar lama akan dipakai.");
+            }
+        }
+
 
         $(document).ready(function () {
             $('.summernote').summernote()
